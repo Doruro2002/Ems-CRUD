@@ -63,7 +63,7 @@ public class EmployeeServiceImpl implements EmployeeService {
     public void deleteEmployee(Long id) {
 
         Employee employee = employeeRepository.findById(id.intValue())
-                .orElseThrow(()-> new ResourceNotFound("Employee does not exist"));
+                .orElseThrow(()-> new ResourceNotFound("Employee does not exist!"));
 
         employeeRepository.deleteById(id.intValue());
     }
