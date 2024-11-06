@@ -4,16 +4,16 @@ import edu.emsi.ems.dto.EmployeeDto;
 import edu.emsi.ems.entity.Employee;
 
 public class EmployeeMapper {
-    public static Employee mapToEmployeeDto(Employee employee){
-        return new Employee(
+    public static EmployeeDto mapToEmployeeDto(Employee employee){
+        return new EmployeeDto(
                 employee.getId(),
                 employee.getFirstName(),
                 employee.getLastName(),
                 employee.getEmail()
         );
     }
-    public static EmployeeDto mapToEmployee(EmployeeDto employeeDto){
-        return new EmployeeDto(
+    public static Employee mapToEmployee(EmployeeDto employeeDto){
+        return new Employee(
                 employeeDto.getId(),
                 employeeDto.getFirstName(),
                 employeeDto.getLastName(),
