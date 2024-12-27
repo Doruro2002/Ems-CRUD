@@ -1,0 +1,61 @@
+pipeline {
+    agent any
+    
+    environment {
+        // Define any environment variables here
+        MAVEN_HOME = tool 'Maven'
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                // Checkout code from the repository
+                git url: 'https://github.com/Doruro2002/Ems-CRUD.git', branch: 'main'
+            }
+        }
+        
+        stage('Build') {
+            steps {
+                // Build the project using Maven
+                script {
+                    def mvnHome = tool name: 'Maven', type: 'maven'
+                    env.PATH = "${mvnHome}/bin:${env.PATH}"
+                }
+                sh 'mvn clean install'
+            }
+        }
+
+        stage('Test') {
+            steps {
+                // Run tests using Maven
+                sh 'mvn test'
+            }
+        }
+
+        stage('Deploy') {
+            steps {
+                // Deploy the project
+                // Replace the following command with your actual deploy command
+                sh 'echo Deploying project...'
+            }
+        }
+    }
+
+    post {
+        always {
+            // Archive build artifacts, e.g., JAR files
+            archiveArtifacts artifacts: '**/target/*.jar', allowEmptyArchive: true
+            
+            // Clean up the workspace
+            cleanWs()
+        }
+        success {
+            // Notify on success
+            echo 'Build succeeded!'
+        }
+        failure {
+            // Notify on failure
+            echo 'Build failed!'
+        }
+    }
+}
