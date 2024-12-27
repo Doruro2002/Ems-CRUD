@@ -1,61 +1,107 @@
 pipeline {
     agent any
-    
-    environment {
-        // Define any environment variables here
-        MAVEN_HOME = tool 'Maven'
+    tools {
+        jdk 'jdk17'
+        maven 'maven'
     }
-
+    environment {
+        SCANNER_HOME = tool 'sonar-scanner'
+    }
     stages {
-        stage('Checkout') {
+        stage('Git Checkout') {
             steps {
-                // Checkout code from the repository
-                git url: 'https://github.com/Doruro2002/Ems-CRUD.git', branch: 'main'
+                git branch: 'main', changelog: false, poll: false, url: 'https://github.com/Omarrh49/Petclinic.git'
             }
         }
         
-        stage('Build') {
+        stage('Code Compile') {
             steps {
-                // Build the project using Maven
-                script {
-                    def mvnHome = tool name: 'Maven', type: 'maven'
-                    env.PATH = "${mvnHome}/bin:${env.PATH}"
+                sh "mvn clean package"
+            }
+        }
+        
+        stage('OWASP Dependency Check') {
+            steps {
+                dependencyCheck additionalArguments: '--scan ./ --format XML', odcInstallation: 'DP-Check'
+                dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
+            }
+        }
+        
+        stage('Sonar Analysis') {
+            steps {
+                withSonarQubeEnv('sonar-server') {
+                    sh '''$SCANNER_HOME/bin/sonar-scanner -Dsonar.projectName=Devops-CICD0 \
+                    -Dsonar.java.binaries=. \
+                    -Dsonar.projectKey=Devops-CICD0'''
                 }
-                sh 'mvn clean install'
             }
         }
-
-        stage('Test') {
+        
+        stage('Trivy Scan') {
             steps {
-                // Run tests using Maven
-                sh 'mvn test'
+                sh "trivy fs . > trivy-fs_report.txt"
             }
         }
-
+        
+        stage('Code Build') {
+            steps {
+                sh "mvn clean install"
+            }
+        }
+        
+        stage('Docker Login') {
+            steps {
+                script {
+                    withCredentials([usernamePassword(credentialsId: 'docker', passwordVariable: 'DOCKER_PASSWORD', usernameVariable: 'DOCKER_USERNAME')]) {
+                        sh "echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin"
+                    }
+                }
+            }
+        }
+        
+        stage('Docker Build') {
+            steps {
+                script {
+                    sh "docker build -t omarrh/petclinic ."
+                }
+            }
+        }
+        
+        stage('Trivy') {
+            steps {
+                sh "trivy image --timeout 5m omarrh/petclinic:latest > trivy.txt"
+            }
+        }
+        
+        stage('Docker Push') {
+            steps {
+                script {
+                    sh "docker tag omarrh/petclinic  omarrh/petclinic:latest"
+                    sh "docker push omarrh/petclinic:latest"
+                }
+            }
+        }
+        
+        
         stage('Deploy') {
             steps {
-                // Deploy the project
-                // Replace the following command with your actual deploy command
-                sh 'echo Deploying project...'
+                sh "docker-compose up -d"
+                sleep 40
+            }
+        }
+        
+    
+        
+    stage('Security Scan with ZAP') {
+        steps {
+            script {
+              sh "docker run --network=host -v ${WORKSPACE}:/zap/wrk/:rw  ghcr.io/zaproxy/zaproxy:weekly zap-api-scan.py  -t http://localhost:8080/petclinic/owners/find -f openapi -r zap_report.html || true" 
+            
+                
             }
         }
     }
-
-    post {
-        always {
-            // Archive build artifacts, e.g., JAR files
-            archiveArtifacts artifacts: '**/target/*.jar', allowEmptyArchive: true
-            
-            // Clean up the workspace
-            cleanWs()
-        }
-        success {
-            // Notify on success
-            echo 'Build succeeded!'
-        }
-        failure {
-            // Notify on failure
-            echo 'Build failed!'
-        }
+        
+        
     }
 }
